@@ -1,0 +1,38 @@
+{
+  "Extreme Close-Up (XCU)": [
+    {
+      "src": "assets/stills/xcu.png",
+      "credit": "Placeholder demo"
+    }
+  ],
+  "American Shot (3/4)": [
+    {
+      "src": "assets/stills/american.png",
+      "credit": "Placeholder demo"
+    }
+  ],
+  "Full Shot (FS)": [
+    {
+      "src": "assets/stills/fullshot.png",
+      "credit": "Placeholder demo"
+    }
+  ],
+  "Szuper plán": [
+    {
+      "src": "assets/stills/xcu.png",
+      "credit": "Placeholder demo"
+    }
+  ],
+  "Amerikai (combközép)": [
+    {
+      "src": "assets/stills/american.png",
+      "credit": "Placeholder demo"
+    }
+  ],
+  "Kistotál (teljes alak)": [
+    {
+      "src": "assets/stills/fullshot.png",
+      "credit": "Placeholder demo"
+    }
+  ]
+}
