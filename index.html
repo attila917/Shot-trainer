@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plán Felismerő · Online filmképekkel</title>
+  <meta name="description" content="Vanilla JS, HU/EN, film stills exclusively from online URLs (Wikimedia/Archive)." />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#f8fafc; --fg:#0f172a; --muted:#64748b; --card:#ffffff; --border:#e2e8f0; --ok:#16a34a; --bad:#dc2626; }
+    *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    header{position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);z-index:5}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .title{display:flex;align-items:center;gap:10px}
+    .logo{width:36px;height:36px;border-radius:12px;background:#000;color:#fff;display:grid;place-items:center;font-weight:700}
+    .sub{font-size:12px;color:var(--muted)}
+    .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-size:14px}
+    .btn.primary{background:#000;color:#fff;border-color:#000}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{padding:6px 10px;border:1px solid var(--border);border-radius:999px;font-size:13px;color:#334155;background:#fff}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+    .grid{display:grid;gap:12px}
+    @media(min-width:900px){ .grid.cols-3{grid-template-columns:repeat(3,1fr)} }
+    .viewer{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#0a0a0a;color:#f8fafc;display:grid;place-items:center}
+    .frame{width:100%;aspect-ratio:16/9;position:relative;background:#111}
+    .frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .opts{display:grid;gap:8px;margin-top:12px}
+    @media(min-width:900px){ .opts{grid-template-columns:repeat(4,1fr)} }
+    .opt{padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;text-align:left;font-size:14px;cursor:pointer}
+    .opt.ok{background:#16a34a;color:white;border-color:#15803d}
+    .opt.dim{opacity:.6}
+    .note{margin-top:8px;font-size:14px}
+    .note.ok{color:#166534}.note.bad{color:#b91c1c}
+    .source{position:absolute;left:10px;bottom:8px;background:rgba(0,0,0,.55);color:#eee;padding:4px 8px;border-radius:8px;font-size:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap row" style="justify-content:space-between;padding:10px 16px">
+      <div class="title">
+        <div class="logo">PF</div>
+        <div>
+          <div id="appName" style="font-weight:600">Plán Felismerő — Online filmképek</div>
+          <div class="sub" id="subtitle">Minden kép online URL-ről töltődik (Wikimedia Commons / Archive.org)</div>
+        </div>
+      </div>
+      <div class="row">
+        <label class="sub" for="langSel">Nyelv:</label>
+        <select id="langSel" class="btn">
+          <option value="hu">Magyar</option>
+          <option value="en">English</option>
+        </select>
+        <button id="modePractice" class="btn">Gyakorlás</button>
+        <button id="modeQuiz" class="btn">Gyorsteszt (10)</button>
+        <button id="exportBtn" class="btn">Export</button>
+        <label class="btn" style="cursor:pointer">Import
+          <input id="importInput" type="file" accept="application/json" class="hidden">
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap grid" style="padding:16px 16px 32px 16px">
+    <section class="grid cols-3">
+      <div class="card">
+        <div class="sub">Pontszám / Score</div>
+        <div style="font-size:24px;font-weight:600"><span id="score">0</span><span id="scoreMax" class="sub"></span></div>
+      </div>
+      <div class="card">
+        <div class="sub">Sorozat / Streak</div>
+        <div style="font-size:24px;font-weight:600" id="streak">0</div>
+      </div>
+      <div class="card">
+        <div class="sub">Mód / Mode</div>
+        <div class="chips" style="margin-top:6px">
+          <span class="chip" id="chipPractice">Gyakorlás / Practice</span>
+          <span class="chip" id="chipQuiz">Gyorsteszt (10) / Quick Test</span>
+          <span class="chip" id="chipCats">0 kategória / categories</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div class="question" id="qTitle">Milyen plán látható? / Which shot size is shown?</div>
+        <div class="sub" id="leftWrap">Hátralévő / Remaining: <b id="left">10</b></div>
+      </div>
+      <div class="viewer">
+        <div class="frame" id="frame">
+          <div class="source" id="source"></div>
+        </div>
+      </div>
+      <div class="opts" id="opts"></div>
+      <div class="note" id="feedback"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="nextBtn" class="btn">Következő / Next</button>
+        <button id="restartBtn" class="btn">Újrakezdés / Restart</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const CANON = [
+      { hu: "Szuper plán", en: "Extreme Close-Up (XCU)" },
+      { hu: "Nagyközeli / Premier plán", en: "Big Close-Up (BCU)" },
+      { hu: "Szűk szekond (mell felett)", en: "Tight Medium Close-Up" },
+      { hu: "Szekond (köldök felett)", en: "Medium Close-Up (MCU)" },
+      { hu: "Amerikai (combközép)", en: "American Shot (3/4)" },
+      { hu: "Olasz (lábszárközép)", en: "Italian Shot" },
+      { hu: "Kistotál (teljes alak)", en: "Full Shot (FS)" },
+      { hu: "Totál plán", en: "Wide Shot (WS)" },
+      { hu: "Nagy totál", en: "Extreme Wide Shot (EWS)" }
+    ];
+
+    let FILM = {};
+    async function loadFilm(){ const r = await fetch('filmstills.json', {cache:'no-store'}); FILM = await r.json(); }
+
+    let state = { lang:'hu', mode:'practice', bank:[], current:null, options:[], score:0, streak:0, left:10, locked:false };
+    function labels(){ return (state.lang==='hu' ? CANON.map(x=>x.hu) : CANON.map(x=>x.en)); }
+    function mapBoth(label){ const i = (state.lang==='hu'? CANON.findIndex(x=>x.hu===label) : CANON.findIndex(x=>x.en===label)); return {hu:CANON[i].hu, en:CANON[i].en}; }
+    const $=s=>document.querySelector(s);
+    const el=(t,p={},...c)=>{const n=document.createElement(t); Object.entries(p).forEach(([k,v])=>{ if(k==='class') n.className=v; else if(k==='html') n.innerHTML=v; else if(k.startsWith('on')) n.addEventListener(k.slice(2).toLowerCase(), v); else n.setAttribute(k,v); }); c.forEach(x=>n.append(x)); return n;}
+
+    function initBank(){
+      const labs = labels();
+      state.bank = labs.flatMap(l=>[{id:Math.random().toString(36).slice(2,10), label:l}]);
+    }
+
+    function pickNew(reset=false){
+      const labs = labels();
+      const pool = state.bank;
+      const item = pool[Math.floor(Math.random()*pool.length)];
+      state.current = item;
+      const other = labs.filter(x=>x!==item.label);
+      const rand = shuffle(other).slice(0, Math.min(3, labs.length-1));
+      state.options = shuffle([item.label, ...rand]);
+      state.locked=false; $("#feedback").textContent=''; $("#feedback").className='note';
+      if(reset){ state.score=0; state.streak=0; state.left=10; }
+      draw();
+    }
+
+    function draw(){
+      const labs = labels();
+      $("#chipCats").textContent = labs.length + " kategória / categories";
+      $("#leftWrap").style.display = (state.mode==='quiz10')? 'block':'none';
+      $("#score").textContent = state.score; $("#scoreMax").textContent = (state.mode==='quiz10')? " /10":"";
+      $("#streak").textContent = state.streak; $("#left").textContent = state.left;
+
+      const frame = $("#frame"); frame.innerHTML=''; const srcEl=$("#source"); srcEl.textContent='';
+      const label = state.current?.label || labs[0];
+      const {hu,en} = mapBoth(label);
+      let src=null, credit="";
+      for(const k of [hu,en]){ const arr = FILM[k]; if(arr && arr.length){ const p = arr[Math.floor(Math.random()*arr.length)]; src=p.src; credit=p.credit||""; break; } }
+      const img = new Image(); img.src = src || ""; img.alt="film still"; img.referrerPolicy="no-referrer-when-downgrade";
+      img.onerror = ()=>{ srcEl.textContent = "Forrás / Source: (nem tölthető)"; };
+      frame.appendChild(img); srcEl.textContent = credit;
+
+      const opts = $("#opts"); opts.innerHTML='';
+      state.options.forEach(opt=>{ opts.appendChild(el('button',{class:'opt', onClick:()=>answer(opt)}, opt)); });
+    }
+
+    function answer(choice){
+      if(state.locked) return;
+      const correct = (choice===state.current.label);
+      Array.from($("#opts").children).forEach(ch=>{
+        if(ch.textContent===state.current.label) ch.classList.add('ok');
+        else if(!correct) ch.classList.add('dim');
+      });
+      state.locked=true;
+      $("#feedback").textContent = correct ? "Helyes! / Correct!" : ("Nem pontos / Not quite — "+state.current.label);
+      $("#feedback").className = 'note ' + (correct? 'ok':'bad');
+      if(correct){ state.score++; state.streak++; } else { state.streak=0; }
+      if(state.mode==='quiz10'){ state.left--; }
+      setTimeout(()=>{
+        if(state.mode==='quiz10' && state.left<=0){ alert('Teszt vége! / Test finished! Score: '+state.score+'/10'); pickNew(true); }
+        else pickNew(false);
+      }, 900);
+    }
+
+    function shuffle(a){ const arr=a.slice(); for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+    // events
+    $("#modePractice").addEventListener('click', ()=>{ state.mode='practice'; draw(); });
+    $("#modeQuiz").addEventListener('click', ()=>{ state.mode='quiz10'; state.left=10; draw(); });
+    $("#nextBtn").addEventListener('click', ()=> pickNew(false));
+    $("#restartBtn").addEventListener('click', ()=> pickNew(true));
+    $("#langSel").addEventListener('change', (e)=>{ state.lang=e.target.value; initBank(); pickNew(true); });
+
+    (async function boot(){
+      await loadFilm();
+      initBank();
+      pickNew(true);
+    })();
+  </script>
+</body>
+</html>
