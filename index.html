@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plán Felismerő · Szakmai (Vanilla)</title>
+    <meta name="description" content="HU/EN shot-size trainer, no frameworks, works on any static host." />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root { --bg:#f8fafc; --fg:#0f172a; --muted:#64748b; --card:#ffffff; --border:#e2e8f0; --accent:#111827; --ok:#16a34a; --bad:#dc2626; }
+      *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+      .wrap{max-width:1000px;margin:0 auto;padding:16px}
+      header{position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);z-index:5}
+      .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+      .title{display:flex;align-items:center;gap:10px}
+      .logo{width:36px;height:36px;border-radius:12px;background:#000;color:#fff;display:grid;place-items:center;font-weight:700}
+      .sub{font-size:12px;color:var(--muted)}
+      .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-size:14px}
+      .btn.primary{background:#000;color:#fff;border-color:#000}
+      .chips{display:flex;gap:8px;flex-wrap:wrap}
+      .chip{padding:6px 10px;border:1px solid var(--border);border-radius:999px;font-size:13px;color:#334155;background:#fff}
+      .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+      .grid{display:grid;gap:12px}
+      @media(min-width:800px){ .grid.cols-3{grid-template-columns:repeat(3,1fr)} }
+      .question{font-weight:600}
+      .viewer{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#f1f5f9}
+      .opts{display:grid;gap:8px;margin-top:12px}
+      @media(min-width:800px){ .opts{grid-template-columns:repeat(4,1fr)} }
+      .opt{padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;text-align:left;font-size:14px;cursor:pointer}
+      .opt.ok{background:#16a34a;color:white;border-color:#15803d}
+      .opt.dim{opacity:.6}
+      .note{margin-top:8px;font-size:14px}
+      .note.ok{color:#166534}.note.bad{color:#b91c1c}
+      footer{color:#94a3b8;text-align:center;font-size:12px;padding:40px 0}
+      select, input[type=file]{font-size:14px}
+      .ref-item{border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:10px}
+      .muted{color:var(--muted);font-size:12px}
+      .hidden{display:none}
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap row" style="justify-content:space-between;padding:10px 16px">
+        <div class="title">
+          <div class="logo">PF</div>
+          <div>
+            <div id="appName" style="font-weight:600">Plán Felismerő — Szakmai</div>
+            <div class="sub" id="subtitle">Szakmai képkivágások (plánok) gyakorlása (HU kanonikus + EN megfelelő)</div>
+          </div>
+        </div>
+        <div class="row">
+          <label class="sub" id="langLabel" for="langSel">Nyelv:</label>
+          <select id="langSel" class="btn">
+            <option value="hu">Magyar</option>
+            <option value="en">English</option>
+          </select>
+          <button id="modePractice" class="btn">Gyakorlás</button>
+          <button id="modeQuiz" class="btn">Gyorsteszt (10)</button>
+          <button id="exportBtn" class="btn">Export</button>
+          <label class="btn" style="cursor:pointer">Import
+            <input id="importInput" type="file" accept="application/json" class="hidden">
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap grid" style="padding:16px 16px 32px 16px">
+      <section class="grid cols-3">
+        <div class="card">
+          <div class="sub" id="scoreLabel">Pontszám</div>
+          <div style="font-size:24px;font-weight:600"><span id="score">0</span><span id="scoreMax" class="muted"></span></div>
+        </div>
+        <div class="card">
+          <div class="sub" id="streakLabel">Sorozat</div>
+          <div style="font-size:24px;font-weight:600" id="streak">0</div>
+        </div>
+        <div class="card">
+          <div class="sub" id="modeLabel">Mód</div>
+          <div class="chips" style="margin-top:6px">
+            <span class="chip" id="chipPractice">Gyakorlás</span>
+            <span class="chip" id="chipQuiz">Gyorsteszt (10)</span>
+            <span class="chip" id="chipCats">0 kategória</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <div class="question" id="qTitle">Milyen plán látható?</div>
+          <div class="muted" id="leftWrap">Hátralévő: <b id="left">10</b></div>
+        </div>
+        <div class="viewer" id="viewer" style="aspect-ratio:16/9"></div>
+        <div class="opts" id="opts"></div>
+        <div class="note" id="feedback"></div>
+        <div class="row" style="margin-top:10px">
+          <button id="nextBtn" class="btn">Következő</button>
+          <button id="restartBtn" class="btn">Újrakezdés</button>
+          <button id="samplesBtn" class="btn">Mintakészlet: bekapcsolva</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="question" id="teacherTitle">Tanári beállítások</div>
+        </div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+          <div>
+            <div class="sub" id="catsLabel">Kategóriák</div>
+            <div id="catList" class="row" style="gap:8px;margin:8px 0;flex-wrap:wrap"></div>
+            <button id="addCatBtn" class="btn">+ Új kategória</button>
+          </div>
+          <div>
+            <div class="sub" id="uploadTitle">Saját képek feltöltése</div>
+            <label class="row" style="border:2px dashed var(--border);border-radius:16px;padding:18px;cursor:pointer">
+              <div>
+                <div id="uploadHint1">Húzd ide a képeket vagy kattints a feltöltéshez</div>
+                <div class="muted" id="uploadHint2">A rendszer megkérdezi, melyik kategóriához rendeljük</div>
+              </div>
+              <input id="uploadInput" type="file" accept="image/*" multiple class="hidden">
+            </label>
+            <div class="muted" id="localNote" style="margin-top:8px">A képek és beállítások csak ezen a böngészőn tárolódnak (localStorage).</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="question" id="tipsTitle">Szakmai referencia (HU/EN)</div>
+          <div class="muted" id="refLegend">Név · Vágás · Távolságérzet · Dramaturgiai cél</div>
+          <div id="refList"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>Forrás: saját jegyzet a megadott segédlet alapján • DV Studio × ChatGPT</footer>
+
+    <script>
+      // ======= Data (aligned with provided handout) =======
+      const CANON = [
+        { hu: "Szuper plán", en: "Super Close-Up", cut: "Csak részlet; környezetből izolál.", dist: "kiemelten intim", use: "Erős hatás, részlet kiemelése." },
+        { hu: "Nagyközeli / Premier plán", en: "Big Close-Up / Extreme CU", cut: "Arc és nyak kis vállal / vagy arc nyak nélkül.", dist: "intim", use: "Érzelem, indulat, belső állapot." },
+        { hu: "Szűk szekond (mell felett)", en: "Tight Medium Close-Up", cut: "Mell felett vág.", dist: "személyes", use: "Interakció, cselekvés (szűk)." },
+        { hu: "Szekond (köldök felett)", en: "Medium Close-Up (MCU)", cut: "Köldök felett vág.", dist: "személyes", use: "Interakció, kézmozdulatok." },
+        { hu: "Amerikai (combközép)", en: "American Shot", cut: "Combközépnél vág.", dist: "szociális", use: "Felsőtest+kéz, akció." },
+        { hu: "Olasz (lábszárközép)", en: "Italian Shot", cut: "Lábszárközépnél vág.", dist: "szociális", use: "Akció, gesztus, alul bővebb." },
+        { hu: "Kistotál (teljes alak)", en: "Full Shot (small env.)", cut: "Teljes alak, kevés háttér.", dist: "szociális", use: "Testbeszéd, csoportviszonyok." },
+        { hu: "Totál plán", en: "Wide Shot", cut: "Környezet + alak(ok).", dist: "távoli", use: "Tér és cselekmény viszonya." },
+        { hu: "Nagy totál", en: "Extreme Wide / Establishing", cut: "Táj, város, környezet.", dist: "földrajzi", use: "Helyszín, lépték." }
+      ];
+
+      const STR = {
+        hu: {
+          appName: "Plán Felismerő — Szakmai",
+          subtitle: "Szakmai képkivágások (plánok) gyakorlása (HU kanonikus + EN megfelelő)",
+          practice: "Gyakorlás", quiz10: "Gyorsteszt (10)", export: "Export", import: "Import",
+          score: "Pontszám", streak: "Sorozat", mode: "Mód",
+          ownImgs: n => n + " saját kép", cats: n => n + " kategória",
+          questionTitle: "Milyen plán látható?", remaining: "Hátralévő:",
+          next: "Következő", restart: "Újrakezdés",
+          teacherTools: "Tanári beállítások", categories: "Kategóriák", delete: "törlés",
+          newCat: "+ Új kategória", uploadTitle: "Saját képek feltöltése",
+          uploadHint1: "Húzd ide a képeket vagy kattints a feltöltéshez",
+          uploadHint2: "A rendszer megkérdezi, melyik kategóriához rendeljük",
+          localNote: "A képek és beállítások csak ezen a böngészőn tárolódnak (localStorage).",
+          tipsTitle: "Szakmai referencia (HU/EN)", correct: "Helyes!",
+          wrong: s => "Nem pontos. Helyes: " + s,
+          testEnd: sc => "Teszt vége! Pontszám: " + sc + "/10",
+          lang: "Nyelv", sampleSet: "Mintakészlet", sampleOn: "bekapcsolva", sampleOff: "kikapcsolva",
+          refLegend: "Név · Vágás · Távolságérzet · Dramaturgiai cél"
+        },
+        en: {
+          appName: "Shot Size Trainer — Professional",
+          subtitle: "Practice canonical HU shot sizes with EN equivalents",
+          practice: "Practice", quiz10: "Quick Test (10)", export: "Export", import: "Import",
+          score: "Score", streak: "Streak", mode: "Mode",
+          ownImgs: n => n + " custom images", cats: n => n + " categories",
+          questionTitle: "Which shot size is shown?", remaining: "Remaining:",
+          next: "Next", restart: "Restart",
+          teacherTools: "Teacher tools", categories: "Categories", delete: "delete",
+          newCat: "+ New category", uploadTitle: "Upload your own images",
+          uploadHint1: "Drag & drop or click to upload",
+          uploadHint2: "You'll be asked which category to assign them to",
+          localNote: "Images & settings are stored only in this browser (localStorage).",
+          tipsTitle: "Professional reference (HU/EN)", correct: "Correct!",
+          wrong: s => "Not quite. Correct: " + s,
+          testEnd: sc => "Test finished! Score: " + sc + "/10",
+          lang: "Language", sampleSet: "Sample set", sampleOn: "ON", sampleOff: "OFF",
+          refLegend: "Name · Cut line · Distance · Dramaturgical use"
+        }
+      };
+
+      const LS = { bank:"plan-vanilla:bank:v1", mode:"plan-vanilla:mode:v1", lang:"plan-vanilla:lang:v1", sample:"plan-vanilla:sample:v1" };
+
+      const $ = sel => document.querySelector(sel);
+      const el = (tag, props={}, ...children)=>{
+        const n = document.createElement(tag);
+        Object.entries(props).forEach(([k,v])=>{
+          if(k==='class') n.className=v;
+          else if(k.startsWith('on')) n.addEventListener(k.slice(2).toLowerCase(), v);
+          else if(k==='html') n.innerHTML=v;
+          else n.setAttribute(k,v);
+        });
+        children.forEach(c=> n.append(c));
+        return n;
+      };
+
+      // SVG generator: framing scale derived from index
+      function svgFor(label){
+        const idx = CANON.findIndex(x => x.hu===label || x.en===label);
+        const scales=[2.4,2.1,1.8,1.5,1.25,1.1,0.9,0.7,0.55];
+        const z = scales[Math.max(0, Math.min(scales.length-1, idx))];
+        const W=640,H=360, base=170, p=base/z, cx=W/2, ground=H-36;
+        const head=p*0.13, body=p*0.5, legs=p*0.37, arms=p*0.22;
+        const torsoTop = ground-legs-body;
+        return `
+          <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%">
+            <defs>
+              <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f1f5f9"/>
+                <stop offset="100%" stop-color="#e2e8f0"/>
+              </linearGradient>
+            </defs>
+            <rect width="${W}" height="${H}" fill="url(#bg)"/>
+            <rect x="0" y="${ground}" width="${W}" height="36" fill="#cbd5e1"/>
+            <rect x="10" y="10" width="${W-20}" height="${H-20}" fill="none" stroke="#0f172a" stroke-dasharray="10 6" opacity="0.25"/>
+            <line x1="${cx-10}" y1="${ground}" x2="${cx-18}" y2="${ground-legs}" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+            <line x1="${cx+10}" y1="${ground}" x2="${cx+18}" y2="${ground-legs}" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+            <line x1="${cx}" y1="${ground-legs}" x2="${cx}" y2="${torsoTop}" stroke="#0f172a" stroke-width="8" stroke-linecap="round"/>
+            <line x1="${cx}" y1="${torsoTop+body*0.15}" x2="${cx-arms*1.2}" y2="${torsoTop+body*0.3}" stroke="#475569" stroke-width="6" stroke-linecap="round"/>
+            <line x1="${cx}" y1="${torsoTop+body*0.15}" x2="${cx+arms*1.2}" y2="${torsoTop+body*0.3}" stroke="#475569" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="${cx}" cy="${torsoTop-head}" r="${head}" fill="#64748b" stroke="#0f172a" stroke-width="3"/>
+          </svg>
+        `;
+      }
+
+      // App state
+      let state = {
+        lang: localStorage.getItem(LS.lang) || 'hu',
+        mode: localStorage.getItem(LS.mode) || 'practice',
+        useSamples: localStorage.getItem(LS.sample)==='0' ? false : true,
+        bank: null,
+        current: null,
+        options: [],
+        score: 0, streak: 0, left: 10, locked:false
+      };
+
+      function labelList(){ return (state.lang==='hu' ? CANON.map(x=>x.hu) : CANON.map(x=>x.en)); }
+
+      function initBank(){
+        const saved = localStorage.getItem(LS.bank);
+        if(saved){ state.bank = JSON.parse(saved); return; }
+        const labs = labelList();
+        state.bank = labs.flatMap(l => [
+          { id: uid(), label:l, source:{type:'svg'} },
+          { id: uid(), label:l, source:{type:'svg'} },
+        ]);
+      }
+
+      function uid(){ return Math.random().toString(36).slice(2,10); }
+
+      function save(){ localStorage.setItem(LS.lang, state.lang);
+        localStorage.setItem(LS.mode, state.mode);
+        localStorage.setItem(LS.sample, state.useSamples? '1':'0');
+        localStorage.setItem(LS.bank, JSON.stringify(state.bank)); }
+
+      // UI bindings
+      const langSel = $("#langSel"), modePractice=$("#modePractice"), modeQuiz=$("#modeQuiz");
+      const exportBtn=$("#exportBtn"), importInput=$("#importInput");
+      const scoreEl=$("#score"), scoreMax=$("#scoreMax"), streakEl=$("#streak"), leftWrap=$("#leftWrap"), leftEl=$("#left");
+      const chipPractice=$("#chipPractice"), chipQuiz=$("#chipQuiz"), chipCats=$("#chipCats");
+      const qTitle=$("#qTitle"), viewer=$("#viewer"), opts=$("#opts"), feedback=$("#feedback");
+      const nextBtn=$("#nextBtn"), restartBtn=$("#restartBtn"), samplesBtn=$("#samplesBtn");
+      const appName=$("#appName"), subtitle=$("#subtitle"), langLabel=$("#langLabel");
+      const scoreLabel=$("#scoreLabel"), streakLabel=$("#streakLabel"), modeLabel=$("#modeLabel");
+      const teacherTitle=$("#teacherTitle"), catsLabel=$("#catsLabel"), addCatBtn=$("#addCatBtn");
+      const uploadTitle=$("#uploadTitle"), uploadHint1=$("#uploadHint1"), uploadHint2=$("#uploadHint2"), localNote=$("#localNote");
+      const catList=$("#catList"), tipsTitle=$("#tipsTitle"), refLegend=$("#refLegend"), refList=$("#refList");
+      const uploadInput=$("#uploadInput");
+
+      function setStrings(){
+        const T = STR[state.lang];
+        appName.textContent=T.appName; subtitle.textContent=T.subtitle;
+        langLabel.textContent= T.lang+":"; modePractice.textContent=T.practice; modeQuiz.textContent=T.quiz10;
+        exportBtn.textContent=T.export;
+        $("#exportBtn+label")?.textContent; // noop
+        $("#scoreLabel").textContent=T.score; $("#streakLabel").textContent=T.streak; $("#modeLabel").textContent=T.mode;
+        $("#qTitle").textContent=T.questionTitle; leftWrap.childNodes[0].nodeValue = T.remaining+" ";
+        nextBtn.textContent=T.next; restartBtn.textContent=T.restart;
+        samplesBtn.textContent = T.sampleSet + ": " + (state.useSamples? T.sampleOn : T.sampleOff);
+        teacherTitle.textContent=T.teacherTools; catsLabel.textContent=T.categories; addCatBtn.textContent=T.newCat;
+        uploadTitle.textContent=T.uploadTitle; uploadHint1.textContent=T.uploadHint1; uploadHint2.textContent=T.uploadHint2; localNote.textContent=T.localNote;
+        tipsTitle.textContent=T.tipsTitle; refLegend.textContent=T.refLegend;
+      }
+
+      function renderRefs(){
+        refList.innerHTML='';
+        const data = CANON;
+        data.forEach(c=>{
+          const name = (state.lang==='hu'? c.hu : c.en);
+          const d = el('div',{class:'ref-item'},
+            el('div',{class:'row',style:"gap:8px;align-items:baseline"},
+              el('div',{style:"font-weight:600"}, name),
+              el('div',{class:'muted'}, c.cut)
+            ),
+            el('div',{class:'muted'}, (state.lang==='hu' ? "Távolságérzet: " : "Distance: ") + c.dist + " · " + (state.lang==='hu' ? "Dramaturgia: " : "Use: ") + c.use)
+          );
+          refList.appendChild(d);
+        });
+      }
+
+      function pickNew(reset=false){
+        const labs = labelList();
+        const pool = state.useSamples ? [
+          ...state.bank,
+          ...labs.map(l=>({id:'S-'+l, label:l, source:{type:'sample'}}))
+        ] : state.bank;
+
+        const item = pool[Math.floor(Math.random()*pool.length)];
+        state.current = item;
+        const other = labs.filter(x=>x!==item.label);
+        const rand = shuffle(other).slice(0, Math.min(3, labs.length-1));
+        state.options = shuffle([item.label, ...rand]);
+        state.locked=false; feedback.textContent=''; feedback.className='note';
+        if(reset){ state.score=0; state.streak=0; state.left=10; }
+        draw();
+      }
+
+      function draw(){
+        const labs = labelList();
+        const T = STR[state.lang];
+        // chips and counters
+        chipPractice.classList.toggle('primary', state.mode==='practice'); chipQuiz.classList.toggle('primary', state.mode==='quiz10');
+        chipPractice.classList.toggle('primary', false); // chips are badges; buttons control mode
+        chipCats.textContent = T.cats(labs.length);
+        leftWrap.style.display = (state.mode==='quiz10')? 'block':'none';
+        scoreEl.textContent=state.score; scoreMax.textContent = state.mode==='quiz10' ? " /10" : "";
+        streakEl.textContent=state.streak; leftEl.textContent=state.left;
+        samplesBtn.textContent = T.sampleSet + ": " + (state.useSamples? T.sampleOn : T.sampleOff);
+
+        // viewer
+        if(state.current){
+          viewer.innerHTML = svgFor(state.current.label);
+        }
+        // options
+        opts.innerHTML='';
+        state.options.forEach(opt=>{
+          const b = el('button',{class:'opt', onClick: ()=>answer(opt)}, opt);
+          opts.appendChild(b);
+        });
+      }
+
+      function answer(choice){
+        if(state.locked) return;
+        const T = STR[state.lang];
+        const correct = (choice===state.current.label);
+        Array.from(opts.children).forEach(ch=>{
+          const b=ch; if(b.textContent===state.current.label) b.classList.add('ok');
+          else if(correct===false) b.classList.add('dim');
+        });
+        state.locked=true;
+        feedback.textContent = correct ? T.correct : T.wrong(state.current.label);
+        feedback.className = 'note ' + (correct? 'ok':'bad');
+        if(correct){ state.score++; state.streak++; } else { state.streak=0; }
+        if(state.mode==='quiz10'){ state.left--; }
+        setTimeout(()=>{
+          if(state.mode==='quiz10' && state.left<=0){
+            alert( (state.lang==='hu'? STR.hu.testEnd : STR.en.testEnd)(state.score) );
+            pickNew(true);
+          } else {
+            pickNew(false);
+          }
+        }, 900);
+      }
+
+      function shuffle(a){ const arr=a.slice(); for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+      // events
+      langSel.addEventListener('change', ()=>{ state.lang=langSel.value; save(); setStrings(); renderRefs(); pickNew(true); });
+      modePractice.addEventListener('click', ()=>{ state.mode='practice'; save(); draw(); });
+      modeQuiz.addEventListener('click', ()=>{ state.mode='quiz10'; save(); state.left=10; draw(); });
+      nextBtn.addEventListener('click', ()=> pickNew(false));
+      restartBtn.addEventListener('click', ()=> pickNew(true));
+      samplesBtn.addEventListener('click', ()=>{ state.useSamples=!state.useSamples; save(); draw(); });
+
+      exportBtn.addEventListener('click', ()=>{
+        const blob = new Blob([JSON.stringify({ bank:state.bank }, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob); const a=document.createElement('a');
+        a.href=url; a.download='shot_trainer_dataset.json'; a.click(); URL.revokeObjectURL(url);
+      });
+      importInput.addEventListener('change', (ev)=>{
+        const f = ev.target.files[0]; if(!f) return;
+        const r = new FileReader(); r.onload=()=>{
+          try{ const data = JSON.parse(r.result); if(!data.bank) throw new Error('bad'); state.bank=data.bank; save(); alert(state.lang==='hu'?'Import sikeres!':'Import successful!'); }
+          catch(e){ alert(state.lang==='hu'?'Nem sikerült beolvasni a JSON-t.':'Could not parse JSON.'); }
+        }; r.readAsText(f);
+      });
+
+      addCatBtn.addEventListener('click', ()=>{
+        const T=STR[state.lang];
+        const name = prompt( state.lang==='hu' ? "Új kategória (HU vagy EN)?" : "New category name?" );
+        if(!name) return;
+        const labs = labelList();
+        if(labs.includes(name)) return alert(state.lang==='hu'?'Már létezik ilyen kategória.':'Category already exists.');
+        state.bank.push({id:uid(), label:name, source:{type:'svg'}});
+        save(); draw(); renderCats();
+      });
+
+      uploadInput.addEventListener('change', (ev)=>{
+        const files = Array.from(ev.target.files||[]);
+        if(!files.length) return;
+        const chosen = prompt( state.lang==='hu' ? "Melyik kategóriához rendeljük? (pontos név)" : "Which category to assign? (exact name)" );
+        if(!chosen) return;
+        Promise.all(files.map(f=> new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); })))
+          .then(datas=>{
+            const items = datas.map(d=>({id:uid(), label:chosen, source:{type:'image', data:d}}));
+            state.bank.push(...items); save();
+            alert( state.lang==='hu' ? (items.length+" kép hozzáadva a(z) "+chosen+" kategóriához.") : (items.length+" image(s) added to "+chosen+".") );
+          });
+      });
+
+      function renderCats(){
+        const labs = labelList();
+        catList.innerHTML='';
+        labs.forEach(l=>{
+          const badge = el('div',{class:'chip'}, l);
+          const del = el('button',{class:'btn', style:"padding:4px 8px;margin-left:6px"}, (state.lang==='hu'?'törlés':'delete'));
+          const wrap = el('div',{class:'row'} , badge, del);
+          del.addEventListener('click', ()=>{
+            if(!confirm( state.lang==='hu' ? `Biztosan törlöd a(z) "${l}" kategóriát?` : `Delete category "${l}"?` )) return;
+            // remove from CANON view? for simplicity we only remove bank items with that label
+            state.bank = state.bank.filter(b=>b.label!==l); save(); draw(); renderCats();
+          });
+          catList.appendChild(wrap);
+        });
+      }
+
+      function boot(){
+        initBank();
+        setStrings();
+        renderRefs();
+        renderCats();
+        pickNew(true);
+      }
+
+      boot();
+    </script>
+  </body>
+</html>
